@@ -23,7 +23,7 @@ const SplashScreen = ({ onComplete }) => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Sempre ir para webview por enquanto
-      onComplete('webview');
+      onComplete('offline');
 
     } catch (error) {
       Logger.error('App initialization failed', error);
