@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StatusBar } from 'react-native';
 import SplashScreen from './src/screens/SplashScreen';
+import WebViewComponent from './src/components/WebViewComponent';
 
 function App() {
   const [appMode, setAppMode] = useState('splash');
@@ -14,25 +15,16 @@ function App() {
     return <SplashScreen onComplete={handleSplashComplete} />;
   }
 
-  // Temporário - para quando o splash terminar
   if (appMode === 'webview') {
     return (
       <>
         <StatusBar barStyle="dark-content" />
-        {/* Aqui depois vamos colocar o WebView */}
+        <WebViewComponent />
       </>
     );
   }
 
-  if (appMode === 'offline') {
-    return (
-      <>
-        <StatusBar barStyle="dark-content" />
-        {/* Aqui depois vamos colocar as telas offline */}
-      </>
-    );
-  }
-
+  // Modo offline - implementaremos depois
   return null;
 }
 
