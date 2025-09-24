@@ -3,6 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StatusMessage from '../components/StatusMessage';
 import { Logger } from '../utils/Logger';
+import NetworkService from '../services/NetworkService';
+
 
 const SplashScreen = ({ onComplete }) => {
   const [status, setStatus] = useState('loading');
@@ -14,16 +16,24 @@ const SplashScreen = ({ onComplete }) => {
 
   const initializeApp = async () => {
     try {
-      Logger.info('App iniciando...');
-      
-      // Simular loading
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setMessage('Abrindo sistema...');
+      setMessage('Iniciando aplicativo...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Sempre ir para webview por enquanto
-      onComplete('offline');
+      setMessage('Verificando conexão...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // POR ENQUANTO: Simular verificação baseada em variável de teste
+      const SIMULAR_OFFLINE = false; // Mude para true para testar modo offline
+      
+      if (SIMULAR_OFFLINE) {
+        setMessage('Simulando modo offline...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        onComplete('offline');
+      } else {
+        setMessage('Conectado! Indo para WebView...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        onComplete('webview');
+      }
 
     } catch (error) {
       Logger.error('App initialization failed', error);
