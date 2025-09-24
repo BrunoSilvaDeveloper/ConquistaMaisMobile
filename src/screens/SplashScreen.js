@@ -18,21 +18,18 @@ const SplashScreen = ({ onComplete }) => {
     try {
       setMessage('Iniciando aplicativo...');
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       setMessage('Verificando conexão...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // POR ENQUANTO: Simular verificação baseada em variável de teste
-      const SIMULAR_OFFLINE = false; // Mude para true para testar modo offline
-      
-      if (SIMULAR_OFFLINE) {
-        setMessage('Simulando modo offline...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        onComplete('offline');
-      } else {
+      const connectionInfo = await NetworkService.checkConnection();
+
+      if (connectionInfo.isConnected) {
         setMessage('Conectado! Indo para WebView...');
         await new Promise(resolve => setTimeout(resolve, 1000));
         onComplete('webview');
+      } else {
+        setMessage('Sem conexão. Abrindo modo offline...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        onComplete('offline');
       }
 
     } catch (error) {
