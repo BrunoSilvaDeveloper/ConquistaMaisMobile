@@ -85,6 +85,10 @@ class StorageService {
     return await this.getItem(STORAGE_KEYS.AUTH_COOKIE);
   }
 
+  async clearAuthCookie() {
+    return await this.removeItem(STORAGE_KEYS.AUTH_COOKIE);
+  }
+
   async saveLastSync(timestamp) {
     return await this.setItem(STORAGE_KEYS.LAST_SYNC, timestamp);
   }

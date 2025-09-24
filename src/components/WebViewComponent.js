@@ -6,6 +6,9 @@ import StorageService from '../storage/StorageService';
 import { API_CONFIG } from '../constants/Config';
 import { Logger } from '../utils/Logger';
 
+// Teste do ApiService removido - funcionando perfeitamente!
+// import '../utils/TestApi';
+
 const WebViewComponent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
