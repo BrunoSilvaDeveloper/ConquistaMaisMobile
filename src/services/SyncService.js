@@ -146,9 +146,13 @@ class SyncService {
   async _handleNetworkChange(networkState) {
     const { isConnected } = networkState;
 
+    Logger.info(`🌐 Mudança de rede detectada: ${isConnected ? 'ONLINE' : 'OFFLINE'}`);
+
     if (isConnected && !this.autoSyncActive) {
+      Logger.info('📡 Voltou online - iniciando sync automático');
       this.startAutoSync();
     } else if (!isConnected && this.autoSyncActive) {
+      Logger.info('📴 Ficou offline - parando sync automático');
       this.stopAutoSync();
     }
   }
@@ -160,9 +164,12 @@ class SyncService {
   startAutoSync() {
     if (this.autoSyncActive) return;
 
+    Logger.info(`⏰ Sync automático iniciado (a cada ${SYNC_INTERVALS.PERIODIC / 1000}s)`);
+
     this.syncInterval = setInterval(async () => {
       const isOnline = await NetworkService.checkConnection();
       if (isOnline && this.state === SYNC_STATES.IDLE) {
+        Logger.info('⏰ Executando sync automático');
         await this.fullSync();
       }
     }, SYNC_INTERVALS.PERIODIC);
@@ -174,6 +181,7 @@ class SyncService {
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
+      Logger.info('⏰ Sync automático parado');
     }
     this.autoSyncActive = false;
   }

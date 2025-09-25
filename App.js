@@ -32,8 +32,10 @@ function App() {
 
   useEffect(() => {
     if (appMode === 'webview') {
+      console.log('🚀 Iniciando modo webview - sync automático ativado');
       SyncService.startAutoSync();
     } else {
+      console.log('📴 Saindo do modo webview - sync automático parado');
       SyncService.stopAutoSync();
     }
   }, [appMode]);

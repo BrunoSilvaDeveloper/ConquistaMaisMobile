@@ -23,17 +23,46 @@ const WishlistScreen = ({ onBack }) => {
   };
 
   const formatDateTime = (start, end) => {
-    if (!start) return 'Horário não informado';
-    try {
-      const startDate = new Date(start);
-      const endDate = end ? new Date(end) : null;
+    if (!start) return 'Data não informada';
 
-      if (endDate) {
-        return `${startDate.toLocaleDateString('pt-BR')} ${startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    try {
+      // Verificar se start é uma data válida
+      let startDate;
+      if (typeof start === 'string') {
+        startDate = new Date(start);
+      } else {
+        startDate = start;
       }
-      return `${startDate.toLocaleDateString('pt-BR')} ${startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+      // Verificar se a data é válida
+      if (isNaN(startDate.getTime())) {
+        return 'Data não informada';
+      }
+
+      const dateStr = startDate.toLocaleDateString('pt-BR');
+      const timeStr = startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+      if (end) {
+        try {
+          let endDate;
+          if (typeof end === 'string') {
+            endDate = new Date(end);
+          } else {
+            endDate = end;
+          }
+
+          if (!isNaN(endDate.getTime())) {
+            const endTimeStr = endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            return `${dateStr} ${timeStr} - ${endTimeStr}`;
+          }
+        } catch {
+          // Se end der erro, continua sem ele
+        }
+      }
+
+      return `${dateStr} ${timeStr}`;
     } catch {
-      return start;
+      return 'Data não informada';
     }
   };
 
