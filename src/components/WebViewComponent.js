@@ -9,6 +9,9 @@ import { Logger } from '../utils/Logger';
 // Teste do ApiService removido - funcionando perfeitamente!
 // import '../utils/TestApi';
 
+// TESTE DO SYNCSERVICE - FUNCIONANDO PERFEITAMENTE!
+// import '../utils/TestSyncService';
+
 const WebViewComponent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
@@ -261,57 +264,50 @@ const WebViewComponent = () => {
         Logger.info('Cookie count:', allCookies.length);
       }
 
-      // Verificar se já temos sessionCookie extraído pelo JavaScript
-      if (sessionCookie) {
-        // Determinar o tipo de cookie baseado no conteúdo
-        let cookieString;
-        if (sessionCookie.includes('laravel_session=')) {
-          cookieString = sessionCookie;
-          Logger.info('Laravel session cookie captured from JS!');
-        } else if (allCookies.includes('laravel_session=')) {
-          // Extrair laravel_session diretamente dos cookies
-          const match = allCookies.match(/laravel_session=([^;]+)/);
-          if (match) {
-            cookieString = `laravel_session=${match[1]}`;
-            Logger.info('Laravel session cookie extracted from allCookies!');
-          }
-        } else {
-          // Usar o sessionCookie como está (pode ser XSRF-TOKEN ou outro)
-          cookieString = sessionCookie.startsWith('XSRF-TOKEN=') ? sessionCookie : `auth_session=${sessionCookie}`;
-          Logger.info('Session cookie saved:', sessionCookie.substring(0, 50) + '...');
-        }
+      // Sempre processar todos os cookies para Laravel (session + XSRF)
+      const laravelSession = allCookies.match(/laravel_session=([^;]+)/);
+      const xsrfToken = allCookies.match(/XSRF-TOKEN=([^;]+)/);
+      const sessionPattern = allCookies.match(/[a-zA-Z0-9_]*session[a-zA-Z0-9_]*=([^;]+)/i);
 
-        if (cookieString) {
-          await StorageService.saveAuthCookie(cookieString);
-          if (!hasCapture) {
-            setHasCaptured(true);
-          }
-        }
+      let cookieString = '';
+      let foundSession = false;
 
+      // Prioridade 1: Laravel session + XSRF
+      if (laravelSession && laravelSession[1]) {
+        cookieString += `laravel_session=${laravelSession[1]}`;
+        foundSession = true;
+      }
+
+      if (xsrfToken && xsrfToken[1]) {
+        if (cookieString) cookieString += '; ';
+        cookieString += `XSRF-TOKEN=${xsrfToken[1]}`;
+        foundSession = true;
+      }
+
+      // Fallback: usar outros patterns de session
+      if (!foundSession) {
+        if (sessionPattern && sessionPattern[1]) {
+          cookieString = sessionPattern[0];
+          foundSession = true;
+        } else if (sessionCookie) {
+          cookieString = sessionCookie.startsWith('XSRF-TOKEN=') || sessionCookie.includes('session=')
+            ? sessionCookie
+            : `auth_session=${sessionCookie}`;
+          foundSession = true;
+        }
+      }
+
+      if (foundSession && cookieString) {
+        await StorageService.saveAuthCookie(cookieString);
+        Logger.info('✅ Cookies salvos completos:', {
+          length: cookieString.length,
+          hasSession: cookieString.includes('session'),
+          hasXSRF: cookieString.includes('XSRF-TOKEN'),
+          preview: cookieString.substring(0, 100) + '...'
+        });
+        if (!hasCapture) setHasCaptured(true);
       } else {
-        // Fallback: procurar manualmente nos cookies
-        const laravelSession = allCookies.match(/laravel_session=([^;]+)/);
-        const xsrfToken = allCookies.match(/XSRF-TOKEN=([^;]+)/);
-        const sessionPattern = allCookies.match(/[a-zA-Z0-9_]*session[a-zA-Z0-9_]*=([^;]+)/i);
-
-        if (laravelSession && laravelSession[1]) {
-          const cookieString = `laravel_session=${laravelSession[1]}`;
-          await StorageService.saveAuthCookie(cookieString);
-          Logger.info('Laravel session cookie captured via regex!');
-          if (!hasCapture) setHasCaptured(true);
-
-        } else if (sessionPattern && sessionPattern[1]) {
-          const cookieString = `${sessionPattern[0]}`;
-          await StorageService.saveAuthCookie(cookieString);
-          Logger.info('Generic session cookie captured:', sessionPattern[0].substring(0, 50) + '...');
-          if (!hasCapture) setHasCaptured(true);
-
-        } else if (xsrfToken && xsrfToken[1]) {
-          const cookieString = `XSRF-TOKEN=${xsrfToken[1]}`;
-          await StorageService.saveAuthCookie(cookieString);
-          Logger.info('XSRF token saved as auth cookie');
-          if (!hasCapture) setHasCaptured(true);
-        }
+        Logger.warn('⚠️ Nenhum cookie válido encontrado para salvar');
       }
 
     } catch (error) {

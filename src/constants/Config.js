@@ -14,6 +14,6 @@ export const STORAGE_KEYS = {
 
 export const SYNC_INTERVALS = {
   APP_OPEN: 0, // Imediato
-  PERIODIC: 5 * 60 * 1000, // 5 minutos
+  PERIODIC: 10 * 1000, // 10 segundos
   RETRY_DELAY: 30 * 1000 // 30 segundos em caso de erro
 };

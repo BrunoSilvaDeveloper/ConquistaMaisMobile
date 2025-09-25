@@ -6,29 +6,25 @@ const OfflineHomeScreen = ({ onNavigate }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Completa+ (Offline)</Text>
-        <Text style={styles.subtitle}>Sem conexão com internet</Text>
+        <Text style={styles.subtitle}>Modo offline</Text>
       </View>
 
       <View style={styles.content}>
-        <TouchableOpacity 
-          style={styles.button}
+        <TouchableOpacity
+          style={styles.navigationButton}
           onPress={() => onNavigate('events')}
         >
-          <Text style={styles.buttonText}>Ver Eventos Salvos</Text>
+          <Text style={styles.navigationIcon}>📅</Text>
+          <Text style={styles.navigationText}>Ver Eventos Salvos</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.button}
+        <TouchableOpacity
+          style={styles.navigationButton}
           onPress={() => onNavigate('wishlist')}
         >
-          <Text style={styles.buttonText}>Lista de Desejos</Text>
+          <Text style={styles.navigationIcon}>❤️</Text>
+          <Text style={styles.navigationText}>Lista de Desejos</Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Conecte-se à internet para sincronizar dados
-        </Text>
       </View>
     </View>
   );
@@ -43,17 +39,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     padding: 20,
     paddingTop: 50,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
     marginTop: 5,
   },
   content: {
@@ -61,26 +56,28 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'center',
   },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
+  navigationButton: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  buttonText: {
-    color: 'white',
+  navigationIcon: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  navigationText: {
     fontSize: 16,
     fontWeight: '600',
-    textAlign: 'center',
-  },
-  footer: {
-    padding: 20,
-    backgroundColor: '#e9ecef',
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
+    color: '#333',
+    flex: 1,
   },
 });
 

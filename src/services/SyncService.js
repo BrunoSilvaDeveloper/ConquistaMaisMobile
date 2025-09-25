@@ -4,148 +4,214 @@ import NetworkService from './NetworkService';
 import { Logger } from '../utils/Logger';
 import { SYNC_INTERVALS } from '../constants/Config';
 
+// Estados do sync
+const SYNC_STATES = {
+  IDLE: 'idle',
+  SYNCING: 'syncing',
+  ERROR: 'error'
+};
+
 class SyncService {
   constructor() {
-    this.isSyncing = false;
+    // Estados de controle
+    this.state = SYNC_STATES.IDLE;
     this.syncInterval = null;
-    this.listeners = [];
+    this.autoSyncActive = false;
+
+    // Controle de sincronização
+    this.lastSyncAttempt = null;
+    this.syncInProgress = false;
+
+    // Inicializar
+    this._init();
   }
 
-  addListener(callback) {
-    this.listeners.push(callback);
+  // ==========================================
+  // INICIALIZAÇÃO E CONTROLE DE ESTADO
+  // ==========================================
+
+  async _init() {
+    try {
+      // Configurar listeners de rede
+      NetworkService.addListener(this._handleNetworkChange.bind(this));
+
+      Logger.info('🔄 SyncService inicializado');
+    } catch (error) {
+      Logger.error('Erro ao inicializar SyncService:', error);
+    }
   }
 
-  removeListener(callback) {
-    this.listeners = this.listeners.filter(listener => listener !== callback);
+  _setState(newState) {
+    this.state = newState;
   }
 
-  notifyListeners(data) {
-    this.listeners.forEach(callback => callback(data));
+  getState() {
+    return this.state;
   }
+
+  // Sistema simplificado - apenas logs de erro
+
+  // ==========================================
+  // MÉTODO FULLSYNC() SIMPLIFICADO
+  // ==========================================
 
   async fullSync() {
-    if (this.isSyncing) {
-      Logger.warn('Sync already in progress');
-      return false;
+    // Prevenir sincronizações simultâneas
+    if (this.syncInProgress) {
+      return { status: 'already_running' };
     }
-
-    if (!NetworkService.isConnected) {
-      Logger.warn('No internet connection for sync');
-      return false;
-    }
-
-    this.isSyncing = true;
-    this.notifyListeners({ type: 'sync_start' });
 
     try {
-      Logger.info('Starting full sync');
+      // Verificar conectividade
+      const isOnline = await NetworkService.checkConnection();
+      if (!isOnline) {
+        return { status: 'no_connection' };
+      }
 
-      // 1. Sincronizar dados principais
+      // Iniciar sincronização
+      this.syncInProgress = true;
+      this._setState(SYNC_STATES.SYNCING);
+
+      // Sincronizar dados principais
       const syncResponse = await ApiService.syncData();
-      
+
       if (syncResponse.success) {
-        const { user, events, wishlist } = syncResponse.data;
+        const { events, wishlist } = syncResponse.data || {};
 
-        // 2. Salvar dados localmente
-        await StorageService.saveUserData(user);
-        await StorageService.saveEvents(events);
-        await StorageService.saveWishlist(wishlist);
-        await StorageService.saveLastSync(new Date().toISOString());
+        // Salvar apenas dados necessários com estrutura simplificada
+        if (events) {
+          const simplifiedEvents = events.map(event => ({
+            id: event.id,
+            title: event.title,
+            start: event.start,
+            end: event.end,
+            loc: event.loc,
+            img: event.img
+          }));
+          await StorageService.saveEvents(simplifiedEvents);
+        }
 
-        Logger.info('Full sync completed successfully');
-        this.notifyListeners({ 
-          type: 'sync_success', 
-          data: syncResponse.data 
-        });
+        if (wishlist) {
+          const simplifiedWishlist = wishlist.map(item => ({
+            wishlist_id: item.wishlist_id,
+            event: {
+              id: item.event.id,
+              title: item.event.title,
+              start: item.event.start,
+              end: item.event.end,
+              loc: item.event.loc,
+              img: item.event.img
+            }
+          }));
+          await StorageService.saveWishlist(simplifiedWishlist);
+        }
 
-        return true;
+        // Atualizar timestamp da última sync
+        const now = new Date().toISOString();
+        await StorageService.saveLastSync(now);
+        this.lastSyncAttempt = now;
+
+        this._setState(SYNC_STATES.IDLE);
+
+        return {
+          status: 'success',
+          timestamp: now
+        };
+
       } else {
         throw new Error(syncResponse.message || 'Sync failed');
       }
 
     } catch (error) {
-      Logger.error('Full sync failed', error);
-      this.notifyListeners({ 
-        type: 'sync_error', 
-        error: error.message 
-      });
-      return false;
+      this._setState(SYNC_STATES.ERROR);
+      Logger.error('❌ Falha no sync:', error);
+
+      return {
+        status: 'failed',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      };
 
     } finally {
-      this.isSyncing = false;
+      this.syncInProgress = false;
     }
   }
 
-  async syncWishlistOnly() {
-    if (!NetworkService.isConnected) {
-      return false;
-    }
 
-    try {
-      const localWishlist = await StorageService.getWishlist() || [];
-      const response = await ApiService.syncWishlist(localWishlist);
-      
-      if (response.success) {
-        await StorageService.saveWishlist(response.data.wishlist);
-        Logger.info('Wishlist sync completed');
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      Logger.error('Wishlist sync failed', error);
-      return false;
+
+  // ==========================================
+  // CONTROLE DE REDE E SYNC AUTOMÁTICO
+  // ==========================================
+
+  async _handleNetworkChange(networkState) {
+    const { isConnected } = networkState;
+
+    if (isConnected && !this.autoSyncActive) {
+      this.startAutoSync();
+    } else if (!isConnected && this.autoSyncActive) {
+      this.stopAutoSync();
     }
   }
 
-  startPeriodicSync() {
-    this.stopPeriodicSync();
-    
+  // ==========================================
+  // SYNC AUTOMÁTICO A CADA 10 SEGUNDOS
+  // ==========================================
+
+  startAutoSync() {
+    if (this.autoSyncActive) return;
+
     this.syncInterval = setInterval(async () => {
-      if (NetworkService.isConnected) {
-        Logger.info('Periodic sync triggered');
+      const isOnline = await NetworkService.checkConnection();
+      if (isOnline && this.state === SYNC_STATES.IDLE) {
         await this.fullSync();
       }
     }, SYNC_INTERVALS.PERIODIC);
 
-    Logger.info('Periodic sync started');
+    this.autoSyncActive = true;
   }
 
-  stopPeriodicSync() {
+  stopAutoSync() {
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
-      Logger.info('Periodic sync stopped');
     }
+    this.autoSyncActive = false;
   }
+
 
   async getLocalData() {
     try {
-      const [userData, events, wishlist, lastSync] = await Promise.all([
-        StorageService.getUserData(),
+      const [events, wishlist] = await Promise.all([
         StorageService.getEvents(),
-        StorageService.getWishlist(),
-        StorageService.getLastSync()
+        StorageService.getWishlist()
       ]);
 
       return {
-        user: userData,
         events: events || [],
-        wishlist: wishlist || [],
-        lastSync: lastSync,
-        hasData: !!(userData && events)
+        wishlist: wishlist || []
       };
 
     } catch (error) {
-      Logger.error('Error loading local data', error);
+      Logger.error('❌ Erro ao carregar dados locais:', error);
       return {
-        user: null,
         events: [],
-        wishlist: [],
-        lastSync: null,
-        hasData: false
+        wishlist: []
       };
     }
+  }
+
+
+
+  getStatus() {
+    return {
+      state: this.state,
+      syncInProgress: this.syncInProgress,
+      autoSyncActive: this.autoSyncActive
+    };
+  }
+
+  static get STATES() {
+    return SYNC_STATES;
   }
 }
 

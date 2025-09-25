@@ -6,6 +6,7 @@ import OfflineHomeScreen from './src/screens/OfflineHomeScreen';
 import EventsListScreen from './src/screens/EventsListScreen';
 import WishlistScreen from './src/screens/WishlistScreen';
 import NetworkService from './src/services/NetworkService';
+import SyncService from './src/services/SyncService';
 
 
 function App() {
@@ -27,6 +28,14 @@ function App() {
 
     const removeListener = NetworkService.addListener(networkListener);
     return () => removeListener();
+  }, [appMode]);
+
+  useEffect(() => {
+    if (appMode === 'webview') {
+      SyncService.startAutoSync();
+    } else {
+      SyncService.stopAutoSync();
+    }
   }, [appMode]);
 
   const handleSplashComplete = (mode) => {

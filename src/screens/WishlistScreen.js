@@ -1,29 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import StorageService from '../storage/StorageService';
 
 const WishlistScreen = ({ onBack }) => {
-  // Dados de exemplo para teste
-  const mockWishlist = [
-    {
-      id: '1',
-      title: 'Curso de Python Avançado',
-      date: '25/10/2025',
-      location: 'Online',
-      type: 'event'
-    },
-    {
-      id: '2',
-      title: 'Hackathon de Inovação',
-      date: '30/10/2025', 
-      location: 'Belo Horizonte, MG',
-      type: 'event'
-    }
-  ];
+  const [wishlist, setWishlist] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRemoveFromWishlist = (itemId) => {
-    // Por enquanto só mostrar no console
-    console.log('Remover item da wishlist:', itemId);
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const wishlistData = await StorageService.getWishlist();
+      setWishlist(wishlistData || []);
+    } catch (err) {
+      setWishlist([]);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const formatDateTime = (start, end) => {
+    if (!start) return 'Horário não informado';
+    try {
+      const startDate = new Date(start);
+      const endDate = end ? new Date(end) : null;
+
+      if (endDate) {
+        return `${startDate.toLocaleDateString('pt-BR')} ${startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      return `${startDate.toLocaleDateString('pt-BR')} ${startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    } catch {
+      return start;
+    }
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyText}>Nenhum item na lista de desejos</Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -34,39 +52,22 @@ const WishlistScreen = ({ onBack }) => {
         <Text style={styles.title}>Lista de Desejos</Text>
       </View>
 
-      <ScrollView style={styles.content}>
-        {mockWishlist.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Sua lista de desejos está vazia</Text>
-            <Text style={styles.emptySubtext}>
-              Conecte-se à internet para adicionar eventos
-            </Text>
-          </View>
-        ) : (
-          mockWishlist.map(item => (
-            <View key={item.id} style={styles.wishlistCard}>
-              <View style={styles.cardContent}>
-                <Text style={styles.itemTitle}>{item.title}</Text>
-                <Text style={styles.itemDate}>{item.date}</Text>
-                <Text style={styles.itemLocation}>{item.location}</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.removeButton}
-                onPress={() => handleRemoveFromWishlist(item.id)}
-              >
-                <Text style={styles.removeText}>Remover</Text>
-              </TouchableOpacity>
-            </View>
-          ))
-        )}
-      </ScrollView>
-
-      {mockWishlist.length > 0 && (
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Conecte-se à internet para se inscrever nos eventos
-          </Text>
+      {loading ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Carregando...</Text>
         </View>
+      ) : (
+        <ScrollView style={styles.content}>
+          {wishlist.length === 0 ? renderEmptyState() : (
+            wishlist.map(item => (
+              <View key={item.wishlist_id} style={styles.wishlistCard}>
+                <Text style={styles.itemTitle}>{item.event.title}</Text>
+                <Text style={styles.itemDate}>{formatDateTime(item.event.start, item.event.end)}</Text>
+                <Text style={styles.itemLocation}>{item.event.loc}</Text>
+              </View>
+            ))
+          )}
+        </ScrollView>
       )}
     </View>
   );
@@ -95,44 +96,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+    flex: 1,
   },
   content: {
     flex: 1,
     padding: 20,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 50,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-  },
   wishlistCard: {
     backgroundColor: 'white',
     padding: 15,
     borderRadius: 8,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  cardContent: {
-    flex: 1,
   },
   itemTitle: {
     fontSize: 16,
@@ -149,25 +128,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  removeButton: {
-    backgroundColor: '#dc3545',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 4,
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 20,
   },
-  removeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  footer: {
-    padding: 20,
-    backgroundColor: '#e9ecef',
-  },
-  footerText: {
-    fontSize: 12,
+  emptyText: {
+    fontSize: 18,
     color: '#666',
     textAlign: 'center',
+    fontWeight: '600',
   },
 });
 

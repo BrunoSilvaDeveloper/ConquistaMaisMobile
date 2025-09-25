@@ -117,6 +117,21 @@ class ApiService {
     // Adicionar cookie de autenticação se disponível
     if (authCookie) {
       config.headers['Cookie'] = authCookie;
+
+      // Para requests POST/PUT/DELETE, extrair e adicionar XSRF token
+      if (options.method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method.toUpperCase())) {
+        const xsrfMatch = authCookie.match(/XSRF-TOKEN=([^;]+)/);
+        if (xsrfMatch) {
+          const xsrfToken = decodeURIComponent(xsrfMatch[1]);
+          config.headers['X-XSRF-TOKEN'] = xsrfToken;
+          Logger.info('🔒 XSRF Token adicionado ao request', {
+            endpoint,
+            tokenPreview: xsrfToken.substring(0, 20) + '...'
+          });
+        } else {
+          Logger.warn('⚠️ XSRF Token não encontrado no cookie para request:', options.method.toUpperCase(), endpoint);
+        }
+      }
       Logger.info(`🍪 Cookie adicionado ao request: ${authCookie.substring(0, 50)}...`);
     } else {
       Logger.warn('⚠️  Nenhum cookie de autenticação encontrado');
@@ -125,7 +140,9 @@ class ApiService {
     // Log detalhado da tentativa
     Logger.info(`🔄 Tentativa ${attempt}/${this.maxRetries}: ${config.method} ${url}`, {
       headers: this._sanitizeHeaders(config.headers),
-      hasBody: !!config.body
+      hasBody: !!config.body,
+      hasXSRF: !!config.headers['X-XSRF-TOKEN'],
+      baseURL: this.baseURL
     });
 
     try {
