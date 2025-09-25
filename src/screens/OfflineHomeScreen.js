@@ -8,6 +8,11 @@ const OfflineHomeScreen = ({ onNavigate }) => {
 
   useEffect(() => {
     loadCounts();
+
+    // Recarregar a cada 5 segundos para pegar dados atualizados
+    const interval = setInterval(loadCounts, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadCounts = async () => {

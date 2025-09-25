@@ -258,7 +258,7 @@ class ApiService {
     return this.responseCache.get(endpoint);
   }
 
-  _cacheResponse(endpoint, response, ttlMs = 300000) { // 5 minutos padrão
+  _cacheResponse(endpoint, response, ttlMs = 5000) { // 5 segundos padrão para permitir sync frequente
     this.responseCache.set(endpoint, response);
     this.cacheExpiration.set(endpoint, Date.now() + ttlMs);
   }

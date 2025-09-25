@@ -26,43 +26,46 @@ const WishlistScreen = ({ onBack }) => {
     if (!start) return 'Data não informada';
 
     try {
-      // Verificar se start é uma data válida
-      let startDate;
-      if (typeof start === 'string') {
-        startDate = new Date(start);
-      } else {
-        startDate = start;
-      }
+      // Converter formato brasileiro DD/MM/YYYY para formato Date válido
+      const convertBrazilianDate = (dateStr) => {
+        if (!dateStr) return null;
+
+        // Se já for um objeto Date
+        if (dateStr instanceof Date) return dateStr;
+
+        // Se for string no formato DD/MM/YYYY, converter para MM/DD/YYYY
+        if (typeof dateStr === 'string' && dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+          const [day, month, year] = dateStr.split('/');
+          return new Date(`${month}/${day}/${year}`);
+        }
+
+        // Tentar converter diretamente
+        return new Date(dateStr);
+      };
+
+      const startDate = convertBrazilianDate(start);
 
       // Verificar se a data é válida
-      if (isNaN(startDate.getTime())) {
-        return 'Data não informada';
+      if (!startDate || isNaN(startDate.getTime())) {
+        return start; // Retorna o valor original se não conseguir converter
       }
 
       const dateStr = startDate.toLocaleDateString('pt-BR');
-      const timeStr = startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
       if (end) {
-        try {
-          let endDate;
-          if (typeof end === 'string') {
-            endDate = new Date(end);
-          } else {
-            endDate = end;
+        const endDate = convertBrazilianDate(end);
+        if (endDate && !isNaN(endDate.getTime())) {
+          const endDateStr = endDate.toLocaleDateString('pt-BR');
+          if (dateStr === endDateStr) {
+            return dateStr; // Se for o mesmo dia, mostra só a data
           }
-
-          if (!isNaN(endDate.getTime())) {
-            const endTimeStr = endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            return `${dateStr} ${timeStr} - ${endTimeStr}`;
-          }
-        } catch {
-          // Se end der erro, continua sem ele
+          return `${dateStr} - ${endDateStr}`;
         }
       }
 
-      return `${dateStr} ${timeStr}`;
+      return dateStr;
     } catch {
-      return 'Data não informada';
+      return start; // Retorna o valor original em caso de erro
     }
   };
 
