@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import StorageService from '../storage/StorageService';
 
-const WishlistScreen = ({ onBack }) => {
+const WishlistScreen = ({ onBack, onEventSelect }) => {
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -92,11 +92,15 @@ const WishlistScreen = ({ onBack }) => {
         <ScrollView style={styles.content}>
           {wishlist.length === 0 ? renderEmptyState() : (
             wishlist.map(item => (
-              <View key={item.wishlist_id} style={styles.wishlistCard}>
+              <TouchableOpacity
+                key={item.wishlist_id}
+                style={styles.wishlistCard}
+                onPress={() => onEventSelect && onEventSelect(item.event)}
+              >
                 <Text style={styles.itemTitle}>{item.event.title}</Text>
                 <Text style={styles.itemDate}>{formatDateTime(item.event.start, item.event.end)}</Text>
                 <Text style={styles.itemLocation}>{item.event.loc}</Text>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </ScrollView>

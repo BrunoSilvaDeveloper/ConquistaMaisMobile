@@ -3,6 +3,7 @@ import StorageService from '../storage/StorageService';
 import NetworkService from './NetworkService';
 import { Logger } from '../utils/Logger';
 import { SYNC_INTERVALS } from '../constants/Config';
+import ImageDownloader from '../utils/ImageDownloader';
 
 // Estados do sync
 const SYNC_STATES = {
@@ -21,6 +22,11 @@ class SyncService {
     // Controle de sincronização
     this.lastSyncAttempt = null;
     this.syncInProgress = false;
+
+    // Controle de download de imagens
+    this.enableImageDownload = true;
+    this.imageDownloadCooldown = 30000; // 30 segundos entre downloads
+    this.lastImageDownload = null;
 
     // Inicializar
     this._init();
@@ -78,32 +84,18 @@ class SyncService {
       if (syncResponse.success) {
         const { events, wishlist } = syncResponse.data || {};
 
-        // Salvar apenas dados necessários com estrutura simplificada
+        // Salvar dados e baixar imagens
+        let processedEvents = [];
+        let processedWishlist = [];
+
         if (events) {
-          const simplifiedEvents = events.map(event => ({
-            id: event.id,
-            title: event.title,
-            start: event.start,
-            end: event.end,
-            loc: event.loc,
-            img: event.img
-          }));
-          await StorageService.saveEvents(simplifiedEvents);
+          processedEvents = await this._processEventsWithImages(events);
+          await StorageService.saveEvents(processedEvents);
         }
 
         if (wishlist) {
-          const simplifiedWishlist = wishlist.map(item => ({
-            wishlist_id: item.wishlist_id,
-            event: {
-              id: item.event.id,
-              title: item.event.title,
-              start: item.event.start,
-              end: item.event.end,
-              loc: item.event.loc,
-              img: item.event.img
-            }
-          }));
-          await StorageService.saveWishlist(simplifiedWishlist);
+          processedWishlist = await this._processWishlistWithImages(wishlist);
+          await StorageService.saveWishlist(processedWishlist);
         }
 
         // Atualizar timestamp da última sync
@@ -206,6 +198,131 @@ class SyncService {
         wishlist: []
       };
     }
+  }
+
+  // ==========================================
+  // PROCESSAMENTO DE IMAGENS
+  // ==========================================
+
+  async _processEventsWithImages(events) {
+    const existingEvents = await StorageService.getEvents() || [];
+    const existingImagesMap = new Map();
+
+    // Mapear imagens já baixadas
+    existingEvents.forEach(event => {
+      if (event.imgBase64) {
+        existingImagesMap.set(event.img, event.imgBase64);
+      }
+    });
+
+    const processedEvents = [];
+    const imagesToDownload = [];
+
+    // Preparar dados simplificados e identificar novas imagens
+    for (const event of events) {
+      const simplifiedEvent = {
+        id: event.id,
+        title: event.title,
+        desc: event.desc,
+        start: event.start,
+        end: event.end,
+        loc: event.loc,
+        cat: event.cat,
+        img: event.img,
+        imgBase64: existingImagesMap.get(event.img) || null
+      };
+
+      processedEvents.push(simplifiedEvent);
+
+      // Se tem imagem e não existe base64, adicionar à lista de download
+      if (event.img && !simplifiedEvent.imgBase64) {
+        imagesToDownload.push({ url: event.img, eventIndex: processedEvents.length - 1 });
+      }
+    }
+
+    // Baixar novas imagens apenas se permitido e não estiver em cooldown
+    if (this.enableImageDownload && imagesToDownload.length > 0 && this._canDownloadImages()) {
+      Logger.info(`📷 Baixando até 3 novas imagens de eventos (${imagesToDownload.length} disponíveis)`);
+
+      const imageUrls = imagesToDownload.map(item => item.url);
+      const downloadResults = await ImageDownloader.downloadMultipleImages(imageUrls, 3); // Máximo 3 imagens
+
+      // Aplicar resultados aos eventos
+      downloadResults.forEach((result, index) => {
+        if (result.base64 && imagesToDownload[index]) {
+          const eventIndex = imagesToDownload[index].eventIndex;
+          processedEvents[eventIndex].imgBase64 = result.base64;
+        }
+      });
+
+      this.lastImageDownload = Date.now();
+    }
+
+    return processedEvents;
+  }
+
+  async _processWishlistWithImages(wishlist) {
+    const existingWishlist = await StorageService.getWishlist() || [];
+    const existingImagesMap = new Map();
+
+    // Mapear imagens já baixadas
+    existingWishlist.forEach(item => {
+      if (item.event && item.event.imgBase64) {
+        existingImagesMap.set(item.event.img, item.event.imgBase64);
+      }
+    });
+
+    const processedWishlist = [];
+    const imagesToDownload = [];
+
+    // Preparar dados simplificados e identificar novas imagens
+    for (const item of wishlist) {
+      const simplifiedItem = {
+        wishlist_id: item.wishlist_id,
+        event: {
+          id: item.event.id,
+          title: item.event.title,
+          desc: item.event.desc,
+          start: item.event.start,
+          end: item.event.end,
+          loc: item.event.loc,
+          cat: item.event.cat,
+          img: item.event.img,
+          imgBase64: existingImagesMap.get(item.event.img) || null
+        }
+      };
+
+      processedWishlist.push(simplifiedItem);
+
+      // Se tem imagem e não existe base64, adicionar à lista de download
+      if (item.event.img && !simplifiedItem.event.imgBase64) {
+        imagesToDownload.push({ url: item.event.img, itemIndex: processedWishlist.length - 1 });
+      }
+    }
+
+    // Não baixar imagens para wishlist em sync automático para economizar requisições
+    // As imagens já devem estar disponíveis dos eventos principais
+    if (this.enableImageDownload && imagesToDownload.length > 0 && this._canDownloadImages() && imagesToDownload.length <= 2) {
+      Logger.info(`📷 Baixando ${imagesToDownload.length} imagens de wishlist`);
+
+      const imageUrls = imagesToDownload.map(item => item.url);
+      const downloadResults = await ImageDownloader.downloadMultipleImages(imageUrls, 2); // Máximo 2 imagens
+
+      // Aplicar resultados aos itens da wishlist
+      downloadResults.forEach((result, index) => {
+        if (result.base64 && imagesToDownload[index]) {
+          const itemIndex = imagesToDownload[index].itemIndex;
+          processedWishlist[itemIndex].event.imgBase64 = result.base64;
+        }
+      });
+    }
+
+    return processedWishlist;
+  }
+
+  _canDownloadImages() {
+    if (!this.lastImageDownload) return true;
+    return Date.now() - this.lastImageDownload > this.imageDownloadCooldown;
   }
 
 

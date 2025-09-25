@@ -5,6 +5,7 @@ import WebViewComponent from './src/components/WebViewComponent';
 import OfflineHomeScreen from './src/screens/OfflineHomeScreen';
 import EventsListScreen from './src/screens/EventsListScreen';
 import WishlistScreen from './src/screens/WishlistScreen';
+import EventDetailScreen from './src/screens/EventDetailScreen';
 import NetworkService from './src/services/NetworkService';
 import SyncService from './src/services/SyncService';
 
@@ -12,6 +13,7 @@ import SyncService from './src/services/SyncService';
 function App() {
   const [appMode, setAppMode] = useState('splash');
   const [offlineScreen, setOfflineScreen] = useState('home');
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
     const networkListener = (networkState) => {
@@ -47,10 +49,19 @@ function App() {
 
   const handleOfflineNavigate = (screen) => {
     setOfflineScreen(screen);
+    setSelectedEvent(null);
   };
 
   const handleOfflineBack = () => {
-    setOfflineScreen('home');
+    if (selectedEvent) {
+      setSelectedEvent(null);
+    } else {
+      setOfflineScreen('home');
+    }
+  };
+
+  const handleEventSelect = (event) => {
+    setSelectedEvent(event);
   };
 
   if (appMode === 'splash') {
@@ -67,11 +78,21 @@ function App() {
   }
 
   if (appMode === 'offline') {
+    // Se um evento foi selecionado, mostra os detalhes
+    if (selectedEvent) {
+      return (
+        <>
+          <StatusBar barStyle="dark-content" />
+          <EventDetailScreen event={selectedEvent} onBack={handleOfflineBack} />
+        </>
+      );
+    }
+
     if (offlineScreen === 'events') {
       return (
         <>
           <StatusBar barStyle="dark-content" />
-          <EventsListScreen onBack={handleOfflineBack} />
+          <EventsListScreen onBack={handleOfflineBack} onEventSelect={handleEventSelect} />
         </>
       );
     }
@@ -80,7 +101,7 @@ function App() {
       return (
         <>
           <StatusBar barStyle="dark-content" />
-          <WishlistScreen onBack={handleOfflineBack} />
+          <WishlistScreen onBack={handleOfflineBack} onEventSelect={handleEventSelect} />
         </>
       );
     }

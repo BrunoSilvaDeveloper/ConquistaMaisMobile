@@ -18,6 +18,17 @@ const WebViewComponent = () => {
   const webViewRef = useRef(null);
   const [hasCapture, setHasCaptured] = useState(false);
 
+  // Helper para executar JavaScript de forma segura
+  const safeInjectJavaScript = (script) => {
+    if (webViewRef.current && typeof webViewRef.current.injectJavaScript === 'function') {
+      try {
+        webViewRef.current.injectJavaScript(script);
+      } catch (error) {
+        Logger.error('Erro ao executar JavaScript no WebView:', error);
+      }
+    }
+  };
+
   useEffect(() => {
     const backAction = () => {
       if (canGoBack && webViewRef.current) {
@@ -213,12 +224,10 @@ const WebViewComponent = () => {
         // Se a página estiver vazia e não for a página de login, redirecionar
         if (!message.url.includes('/login') && message.content.length < 50) {
           setTimeout(() => {
-            if (webViewRef.current) {
-              Logger.info('Redirecting empty page to login');
-              webViewRef.current.injectJavaScript(`
-                window.location.href = window.location.origin + '/login';
-              `);
-            }
+            Logger.info('Redirecting empty page to login');
+            safeInjectJavaScript(`
+              window.location.href = window.location.origin + '/login';
+            `);
           }, 1000);
         }
       } else if (message.type === 'pageDebug') {
@@ -238,13 +247,11 @@ const WebViewComponent = () => {
           Logger.warn('Detected potential white screen - very little content');
 
           setTimeout(() => {
-            if (webViewRef.current) {
-              Logger.info('Attempting to fix white screen by navigating to login');
-              webViewRef.current.injectJavaScript(`
-                console.log('Forcing navigation to login due to white screen');
-                window.location.href = window.location.origin + '/login';
-              `);
-            }
+            Logger.info('Attempting to fix white screen by navigating to login');
+            safeInjectJavaScript(`
+              console.log('Forcing navigation to login due to white screen');
+              window.location.href = window.location.origin + '/login';
+            `);
           }, 2000);
         }
       }
@@ -329,7 +336,7 @@ const WebViewComponent = () => {
           if (webViewRef.current) {
             // Primeira verificação após 1 segundo
             setTimeout(() => {
-              webViewRef.current.injectJavaScript(`
+              safeInjectJavaScript(`
                 (function() {
                   console.log('First page check after load');
                   const bodyText = document.body ? document.body.textContent.trim() : '';
@@ -352,7 +359,7 @@ const WebViewComponent = () => {
 
             // Segunda verificação após 3 segundos (para SPAs que demoram pra carregar)
             setTimeout(() => {
-              webViewRef.current.injectJavaScript(`
+              safeInjectJavaScript(`
                 (function() {
                   console.log('Second page check after load');
                   const bodyText = document.body ? document.body.textContent.trim() : '';
@@ -421,7 +428,7 @@ const WebViewComponent = () => {
             setTimeout(() => {
               if (webViewRef.current) {
                 Logger.info('Navigating to login due to HTTP error:', nativeEvent.statusCode);
-                webViewRef.current.injectJavaScript(`
+                safeInjectJavaScript(`
                   window.location.href = window.location.origin + '/login';
                 `);
               }

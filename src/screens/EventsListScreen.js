@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import StorageService from '../storage/StorageService';
 
-const EventsListScreen = ({ onBack }) => {
+const EventsListScreen = ({ onBack, onEventSelect }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -92,11 +92,15 @@ const EventsListScreen = ({ onBack }) => {
         <ScrollView style={styles.content}>
           {events.length === 0 ? renderEmptyState() : (
             events.map(event => (
-              <View key={event.id} style={styles.eventCard}>
+              <TouchableOpacity
+                key={event.id}
+                style={styles.eventCard}
+                onPress={() => onEventSelect && onEventSelect(event)}
+              >
                 <Text style={styles.eventTitle}>{event.title}</Text>
                 <Text style={styles.eventDate}>{formatDateTime(event.start, event.end)}</Text>
                 <Text style={styles.eventLocation}>{event.loc}</Text>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </ScrollView>
