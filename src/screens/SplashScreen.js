@@ -48,7 +48,7 @@ const SplashScreen = ({ onComplete }) => {
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
-        <Text style={styles.logoText}>Completa+</Text>
+        <Text style={styles.logoText}>Conquista+</Text>
       </View>
 
       {status === 'loading' && (

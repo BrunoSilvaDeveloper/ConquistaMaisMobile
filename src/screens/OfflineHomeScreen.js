@@ -33,7 +33,7 @@ const OfflineHomeScreen = ({ onNavigate }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Completa+ (Offline)</Text>
+        <Text style={styles.title}>Conquista+ (Offline)</Text>
         <Text style={styles.subtitle}>Modo offline</Text>
       </View>
 
