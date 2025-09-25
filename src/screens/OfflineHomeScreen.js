@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import StorageService from '../storage/StorageService';
 
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#677DE9',
     padding: 20,
     paddingTop: 50,
     alignItems: 'center',
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#677DE9',
     marginBottom: 5,
   },
   statLabel: {
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   badge: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#677DE9',
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
