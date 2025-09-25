@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import StorageService from '../storage/StorageService';
+import SyncService from '../services/SyncService';
+import NetworkService from '../services/NetworkService';
 
 const OfflineHomeScreen = ({ onNavigate }) => {
   const [eventsCount, setEventsCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     loadCounts();
@@ -28,6 +32,85 @@ const OfflineHomeScreen = ({ onNavigate }) => {
       setEventsCount(0);
       setWishlistCount(0);
     }
+  };
+
+  // Métodos de debug
+  const runDebugSync = async () => {
+    Alert.alert(
+      'Debug Sync',
+      'Executar diagnóstico completo da sincronização?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Executar',
+          onPress: async () => {
+            try {
+              const diagnosis = await SyncService.debugSync();
+              setDebugInfo(diagnosis);
+              setShowDebug(true);
+
+              const message = diagnosis.success
+                ? `Debug concluído com sucesso!\n\nDuração: ${diagnosis.duration}ms\nTestes executados: ${Object.keys(diagnosis.tests).length}`
+                : `Debug falhou: ${diagnosis.error}`;
+
+              Alert.alert('Debug Sync', message);
+            } catch (error) {
+              Alert.alert('Erro', `Falha ao executar debug: ${error.message}`);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const checkConnectivity = async () => {
+    try {
+      const isOnline = await NetworkService.checkConnection();
+      const syncStats = SyncService.getDebugStats();
+
+      Alert.alert(
+        'Status de Conectividade',
+        `Conectividade: ${isOnline ? '🟢 ONLINE' : '🔴 OFFLINE'}\n\n` +
+        `Sync Status:\n` +
+        `• Estado: ${syncStats.currentState}\n` +
+        `• Sync em andamento: ${syncStats.syncInProgress ? 'Sim' : 'Não'}\n` +
+        `• Auto-sync ativo: ${syncStats.autoSyncActive ? 'Sim' : 'Não'}\n` +
+        `• Última tentativa: ${syncStats.lastSyncAttempt || 'Nunca'}\n\n` +
+        `Estatísticas:\n` +
+        `• Tentativas totais: ${syncStats.totalSyncAttempts}\n` +
+        `• Sucessos: ${syncStats.successfulSyncs}\n` +
+        `• Falhas: ${syncStats.failedSyncs}\n` +
+        `• Último status: ${syncStats.lastSyncStatus || 'N/A'}`
+      );
+    } catch (error) {
+      Alert.alert('Erro', `Falha ao verificar conectividade: ${error.message}`);
+    }
+  };
+
+  const forceSync = async () => {
+    Alert.alert(
+      'Forçar Sync',
+      'Executar sincronização manual agora?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Executar',
+          onPress: async () => {
+            try {
+              const result = await SyncService.fullSync();
+              const message = result.status === 'success'
+                ? `Sincronização concluída!\n\nEventos: ${result.eventsCount}\nWishlist: ${result.wishlistCount}\nDuração: ${result.duration}ms`
+                : `Sincronização falhou: ${result.error}`;
+
+              Alert.alert('Sync Manual', message);
+              loadCounts(); // Recarregar contadores
+            } catch (error) {
+              Alert.alert('Erro', `Falha ao executar sync: ${error.message}`);
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -74,6 +157,42 @@ const OfflineHomeScreen = ({ onNavigate }) => {
             </View>
           )}
         </TouchableOpacity>
+
+        {/* Seção de Debug - Temporária */}
+        <View style={styles.debugSection}>
+          <Text style={styles.debugTitle}>🔧 Debug da Sincronização</Text>
+
+          <TouchableOpacity style={styles.debugButton} onPress={checkConnectivity}>
+            <Text style={styles.debugButtonText}>📊 Status & Conectividade</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.debugButton} onPress={forceSync}>
+            <Text style={styles.debugButtonText}>🚀 Forçar Sync Manual</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.debugButton} onPress={runDebugSync}>
+            <Text style={styles.debugButtonText}>🔍 Debug Completo</Text>
+          </TouchableOpacity>
+
+          {showDebug && (
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={() => setShowDebug(!showDebug)}
+            >
+              <Text style={styles.debugButtonText}>
+                📋 {showDebug ? 'Ocultar' : 'Mostrar'} Resultados Debug
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {showDebug && debugInfo && (
+            <ScrollView style={styles.debugResults}>
+              <Text style={styles.debugResultText}>
+                {JSON.stringify(debugInfo, null, 2)}
+              </Text>
+            </ScrollView>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -169,6 +288,49 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  // Estilos de debug
+  debugSection: {
+    backgroundColor: '#fff3cd',
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 30,
+    borderWidth: 2,
+    borderColor: '#ffc107',
+  },
+  debugTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#856404',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  debugButton: {
+    backgroundColor: '#ffc107',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    color: '#856404',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  debugResults: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  debugResultText: {
+    fontFamily: 'monospace',
+    fontSize: 10,
+    color: '#495057',
+    lineHeight: 14,
   },
 });
 
